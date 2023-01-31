@@ -140,10 +140,7 @@ else
 fi
 AC_SUBST(EXTRA_FLAGS)
 
-ACX_PROG_CC_WARNING_OPTS([-W -Wall -Wwrite-strings -Wstrict-prototypes \
-			  -Wmissing-prototypes -Wold-style-definition \
-			  -Wmissing-format-attribute -Wcast-qual \
-			  -Wno-attributes -Wno-unknown-attributes],
+ACX_PROG_CC_WARNING_OPTS([-Wall],
 			  [WARN_FLAGS])
 
 AC_ARG_ENABLE([werror],
