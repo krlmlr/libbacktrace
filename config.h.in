@@ -46,6 +46,9 @@
    <sys/sysctl.h>. */
 #undef HAVE_KERN_PROC_ARGS
 
+/* Define if -llzma is available. */
+#undef HAVE_LIBLZMA
+
 /* Define to 1 if you have the <link.h> header file. */
 #undef HAVE_LINK_H
 
@@ -82,6 +85,9 @@
 /* Define to 1 if you have the <sys/ldr.h> header file. */
 #undef HAVE_SYS_LDR_H
 
+/* Define to 1 if you have the <sys/link.h> header file. */
+#undef HAVE_SYS_LINK_H
+
 /* Define to 1 if you have the <sys/mman.h> header file. */
 #undef HAVE_SYS_MMAN_H
 
@@ -96,6 +102,9 @@
 
 /* Define if -lz is available. */
 #undef HAVE_ZLIB
+
+/* Define if -lzstd is available. */
+#undef HAVE_ZSTD
 
 /* Define to the sub-directory in which libtool stores uninstalled libraries.
    */

@@ -1,5 +1,5 @@
 # Makefile.am -- Backtrace Makefile.
-# Copyright (C) 2012-2020 Free Software Foundation, Inc.
+# Copyright (C) 2012-2021 Free Software Foundation, Inc.
 
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are
@@ -86,13 +86,19 @@ libbacktrace_la_DEPENDENCIES = $(libbacktrace_la_LIBADD)
 
 # Testsuite.
 
-# Add a test to this variable if you want it to be built.
+# Add a test to this variable if you want it to be built as a program,
+# with SOURCES, etc.
 check_PROGRAMS =
 
 # Add a test to this variable if you want it to be run.
 TESTS =
 
-# Add a test to this variable if you want it to be built and run.
+# Add a test to this variable if you want it to be built as a Makefile
+# target and run.
+MAKETESTS =
+
+# Add a test to this variable if you want it to be built as a program,
+# with SOURCES, etc., and run.
 BUILDTESTS =
 
 # Add a file to this variable if you want it to be built for testing.
@@ -101,12 +107,12 @@ check_DATA =
 # Flags to use when compiling test programs.
 libbacktrace_TEST_CFLAGS = $(EXTRA_FLAGS) $(WARN_FLAGS) -g
 
-if HAVE_DSYMUTIL
+if USE_DSYMUTIL
 
 %.dSYM: %
 	$(DSYMUTIL) $<
 
-endif HAVE_DSYMUTIL
+endif USE_DSYMUTIL
 
 if NATIVE
 check_LTLIBRARIES = libbacktrace_alloc.la
@@ -238,11 +244,12 @@ allocfail.sh: allocfail
 
 TESTS += allocfail.sh
 
-if HAVE_DSYMUTIL
+if USE_DSYMUTIL
 check_DATA += allocfail.dSYM
-endif HAVE_DSYMUTIL
+endif USE_DSYMUTIL
 
 if HAVE_ELF
+if HAVE_BUILDID
 if HAVE_OBJCOPY_DEBUGLINK
 
 b2test_SOURCES = $(btest_SOURCES)
@@ -251,7 +258,7 @@ b2test_LDFLAGS = -Wl,--build-id
 b2test_LDADD = libbacktrace_elf_for_test.la
 
 check_PROGRAMS += b2test
-TESTS += b2test_buildid
+MAKETESTS += b2test_buildid
 
 if HAVE_DWZ
 
@@ -261,11 +268,12 @@ b3test_LDFLAGS = -Wl,--build-id
 b3test_LDADD = libbacktrace_elf_for_test.la
 
 check_PROGRAMS += b3test
-TESTS += b3test_dwz_buildid
+MAKETESTS += b3test_dwz_buildid
 
 endif HAVE_DWZ
 
 endif HAVE_OBJCOPY_DEBUGLINK
+endif HAVE_BUILDID
 endif HAVE_ELF
 
 btest_SOURCES = btest.c testlib.c
@@ -274,9 +282,9 @@ btest_LDADD = libbacktrace.la
 
 BUILDTESTS += btest
 
-if HAVE_DSYMUTIL
+if USE_DSYMUTIL
 check_DATA += btest.dSYM
-endif HAVE_DSYMUTIL
+endif USE_DSYMUTIL
 
 if HAVE_ELF
 
@@ -294,9 +302,9 @@ btest_alloc_LDADD = libbacktrace_alloc.la
 
 BUILDTESTS += btest_alloc
 
-if HAVE_DSYMUTIL
+if USE_DSYMUTIL
 check_DATA += btest_alloc.dSYM
-endif HAVE_DSYMUTIL
+endif USE_DSYMUTIL
 
 if HAVE_DWZ
 
@@ -304,15 +312,19 @@ if HAVE_DWZ
 	rm -f $@ $@_common.debug
 	cp $< $@_1
 	cp $< $@_2
-	$(DWZ) -m $@_common.debug $@_1 $@_2
-	rm -f $@_2
-	mv $@_1 $@
+	if $(DWZ) -m $@_common.debug $@_1 $@_2; then \
+	  rm -f $@_2; \
+	  mv $@_1 $@; \
+	else \
+	  echo "Ignoring dwz errors, assuming that test passes"; \
+	  cp $< $@; \
+	fi
 
-TESTS += btest_dwz
+MAKETESTS += btest_dwz
 
 if HAVE_OBJCOPY_DEBUGLINK
 
-TESTS += btest_dwz_gnudebuglink
+MAKETESTS += btest_dwz_gnudebuglink
 
 endif HAVE_OBJCOPY_DEBUGLINK
 
@@ -324,9 +336,9 @@ stest_LDADD = libbacktrace.la
 
 BUILDTESTS += stest
 
-if HAVE_DSYMUTIL
+if USE_DSYMUTIL
 check_DATA += stest.dSYM
-endif HAVE_DSYMUTIL
+endif USE_DSYMUTIL
 
 stest_alloc_SOURCES = $(stest_SOURCES)
 stest_alloc_CFLAGS = $(libbacktrace_TEST_CFLAGS)
@@ -334,9 +346,9 @@ stest_alloc_LDADD = libbacktrace_alloc.la
 
 BUILDTESTS += stest_alloc
 
-if HAVE_DSYMUTIL
+if USE_DSYMUTIL
 check_DATA += stest_alloc.dSYM
-endif HAVE_DSYMUTIL
+endif USE_DSYMUTIL
 
 if HAVE_ELF
 
@@ -359,6 +371,25 @@ ztest_alloc_CFLAGS = $(ztest_CFLAGS)
 
 BUILDTESTS += ztest_alloc
 
+zstdtest_SOURCES = zstdtest.c testlib.c
+zstdtest_CFLAGS = $(libbacktrace_TEST_CFLAGS) -DSRCDIR=\"$(srcdir)\"
+zstdtest_LDADD = libbacktrace.la
+zstdtest_alloc_LDADD = libbacktrace_alloc.la
+
+if HAVE_ZSTD
+zstdtest_LDADD += -lzstd
+zstdtest_alloc_LDADD += -lzstd
+endif
+zstdtest_LDADD += $(CLOCK_GETTIME_LINK)
+zstdtest_alloc_LDADD += $(CLOCK_GETTIME_LINK)
+
+BUILDTESTS += zstdtest
+
+zstdtest_alloc_SOURCES = $(zstdtest_SOURCES)
+zstdtest_alloc_CFLAGS = $(zstdtest_CFLAGS)
+
+BUILDTESTS += zstdtest_alloc
+
 endif HAVE_ELF
 
 edtest_SOURCES = edtest.c edtest2_build.c testlib.c
@@ -367,17 +398,17 @@ edtest_LDADD = libbacktrace.la
 
 BUILDTESTS += edtest
 
-if HAVE_DSYMUTIL
+if USE_DSYMUTIL
 check_DATA += edtest.dSYM
-endif HAVE_DSYMUTIL
+endif USE_DSYMUTIL
 
 edtest_alloc_SOURCES = $(edtest_SOURCES)
 edtest_alloc_CFLAGS = $(libbacktrace_TEST_CFLAGS)
 edtest_alloc_LDADD = libbacktrace_alloc.la
 
-if HAVE_DSYMUTIL
+if USE_DSYMUTIL
 check_DATA += edtest_alloc.dSYM
-endif HAVE_DSYMUTIL
+endif USE_DSYMUTIL
 
 BUILDTESTS += edtest_alloc
 
@@ -395,9 +426,9 @@ ttest_SOURCES = ttest.c testlib.c
 ttest_CFLAGS = $(libbacktrace_TEST_CFLAGS) -pthread
 ttest_LDADD = libbacktrace.la
 
-if HAVE_DSYMUTIL
+if USE_DSYMUTIL
 check_DATA += ttest.dSYM
-endif HAVE_DSYMUTIL
+endif USE_DSYMUTIL
 
 BUILDTESTS += ttest_alloc
 
@@ -405,15 +436,15 @@ ttest_alloc_SOURCES = $(ttest_SOURCES)
 ttest_alloc_CFLAGS = $(ttest_CFLAGS)
 ttest_alloc_LDADD = libbacktrace_alloc.la
 
-if HAVE_DSYMUTIL
+if USE_DSYMUTIL
 check_DATA += ttest_alloc.dSYM
-endif HAVE_DSYMUTIL
+endif USE_DSYMUTIL
 
 endif HAVE_PTHREAD
 
 if HAVE_OBJCOPY_DEBUGLINK
 
-TESTS += btest_gnudebuglink
+MAKETESTS += btest_gnudebuglink
 
 %_gnudebuglink: %
 	$(OBJCOPY) --only-keep-debug $< $@.debug
@@ -441,6 +472,17 @@ ctesta_LDADD = libbacktrace.la
 
 BUILDTESTS += ctestg ctesta
 
+if HAVE_COMPRESSED_DEBUG_ZSTD
+
+ctestzstd_SOURCES = btest.c testlib.c
+ctestzstd_CFLAGS = $(libbacktrace_TEST_CFLAGS)
+ctestzstd_LDFLAGS = -Wl,--compress-debug-sections=zstd
+ctestzstd_LDADD = libbacktrace.la
+
+BUILDTESTS += ctestzstd
+
+endif
+
 ctestg_alloc_SOURCES = $(ctestg_SOURCES)
 ctestg_alloc_CFLAGS = $(ctestg_CFLAGS)
 ctestg_alloc_LDFLAGS = $(ctestg_LDFLAGS)
@@ -463,9 +505,9 @@ dwarf5_LDADD = libbacktrace.la
 
 BUILDTESTS += dwarf5
 
-if HAVE_DSYMUTIL
+if USE_DSYMUTIL
 check_DATA += dwarf5.dSYM
-endif HAVE_DSYMUTIL
+endif USE_DSYMUTIL
 
 dwarf5_alloc_SOURCES = $(dwarf5_SOURCES)
 dwarf5_alloc_CFLAGS = $(dwarf5_CFLAGS)
@@ -473,19 +515,72 @@ dwarf5_alloc_LDADD = libbacktrace_alloc.la
 
 BUILDTESTS += dwarf5_alloc
 
-if HAVE_DSYMUTIL
+if USE_DSYMUTIL
 check_DATA += dwarf5_alloc.dSYM
-endif HAVE_DSYMUTIL
+endif USE_DSYMUTIL
 
 endif
 
+mtest_SOURCES = mtest.c testlib.c
+mtest_CFLAGS = $(libbacktrace_TEST_CFLAGS) -O
+mtest_LDADD = libbacktrace.la
+
+BUILDTESTS += mtest
+
+if USE_DSYMUTIL
+check_DATA += mtest.dSYM
+endif USE_DSYMUTIL
+
+if HAVE_MINIDEBUG
+
+MAKETESTS += mtest_minidebug
+
+%_minidebug: %
+	$(NM) -D $< -P --defined-only | $(AWK) '{ print $$1 }' | sort > $<.dsyms
+	$(NM) $< -P --defined-only | $(AWK) '{ if ($$2 == "T" || $$2 == "t" || $$2 == "D") print $$1 }' | sort > $<.fsyms
+	$(COMM) -13 $<.dsyms $<.fsyms > $<.keepsyms
+	$(OBJCOPY) --only-keep-debug $< $<.dbg
+	$(OBJCOPY) -S --remove-section .gdb_index --remove-section .comment --keep-symbols=$<.keepsyms $<.dbg $<.mdbg
+	$(OBJCOPY) --strip-all --remove-section ..comment $< $<.strip
+	rm -f $<.mdbg.xz
+	$(XZ) $<.mdbg
+	$(OBJCOPY) --add-section .gnu_debugdata=$<.mdbg.xz $<.strip
+	mv $<.strip $@
+
+endif HAVE_MINIDEBUG
+
 endif NATIVE
+
+if HAVE_ELF
+
+xztest_SOURCES = xztest.c testlib.c
+xztest_CFLAGS = $(libbacktrace_TEST_CFLAGS) -DSRCDIR=\"$(srcdir)\"
+xztest_LDADD = libbacktrace.la
+
+xztest_alloc_SOURCES = $(xztest_SOURCES)
+xztest_alloc_CFLAGS = $(xztest_CFLAGS)
+xztest_alloc_LDADD = libbacktrace_alloc.la
+
+if HAVE_LIBLZMA
+xztest_LDADD += -llzma
+xztest_alloc_LDADD += -llzma
+endif
+
+xztest_LDADD += $(CLOCK_GETTIME_LINK)
+xztest_alloc_LDADD += $(CLOCK_GETTIME_LINK)
+
+BUILDTESTS += xztest xztest_alloc
+
+endif HAVE_ELF
 
 check_PROGRAMS += $(BUILDTESTS)
 
-TESTS += $(BUILDTESTS)
+TESTS += $(MAKETESTS) $(BUILDTESTS)
 
-CLEANFILES = $(TESTS) *.debug elf_for_test.c edtest2_build.c gen_edtest2_build
+CLEANFILES = \
+	$(MAKETESTS) $(BUILDTESTS) *.debug elf_for_test.c edtest2_build.c \
+	gen_edtest2_build \
+	*.dsyms *.fsyms *.keepsyms *.dbg *.mdbg *.mdbg.xz *.strip
 
 clean-local:
 	-rm -rf usr
@@ -511,6 +606,7 @@ fileline.lo: config.h backtrace.h internal.h
 macho.lo: config.h backtrace.h internal.h
 mmap.lo: config.h backtrace.h internal.h
 mmapio.lo: config.h backtrace.h internal.h
+mtest.lo: backtrace.h backtrace-supported.h
 nounwind.lo: config.h internal.h
 pecoff.lo: config.h backtrace.h internal.h
 posix.lo: config.h backtrace.h internal.h
@@ -522,4 +618,6 @@ stest.lo: config.h backtrace.h internal.h
 state.lo: config.h backtrace.h backtrace-supported.h internal.h
 unknown.lo: config.h backtrace.h internal.h
 xcoff.lo: config.h backtrace.h internal.h
+xztest.lo: config.h backtrace.h backtrace-supported.h internal.h testlib.h
+ztest.lo: config.h backtrace.h backtrace-supported.h internal.h testlib.h
 
