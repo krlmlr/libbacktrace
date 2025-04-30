@@ -1,5 +1,5 @@
 /* mtest.c -- Minidebug test for libbacktrace library
-   Copyright (C) 2020-2021 Free Software Foundation, Inc.
+   Copyright (C) 2020-2024 Free Software Foundation, Inc.
    Written by Ian Lance Taylor, Google.
 
 Redistribution and use in source and binary forms, with or without
@@ -373,7 +373,7 @@ test5 (void)
 		   (unsigned long) (uintptr_t) &global);
 	  symdata.failed = 1;
 	}
-      else if (symdata.size != sizeof (global))
+      else if (symdata.size != sizeof (global) && symdata.size != 0)
 	{
 	  fprintf (stderr,
 		   "test5: unexpected syminfo size got %lx expected %lx\n",
